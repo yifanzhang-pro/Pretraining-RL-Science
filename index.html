@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Reliable RL Scaling Requires Thinking about Prefill-Decode Kernel Mismatch</title>
+  <title>Reliable RL Scaling Requires Accounting for Prefill-Decode Kernel Mismatch</title>
   <meta name="description" content="LM reinforcement learning is literally on-policy only when the executable distribution used by rollout is the same distribution differentiated by the learner. Four remedies for prefill-decode and chunkwise-recurrent kernel mismatch.">
-  <meta name="citation_title" content="Reliable RL Scaling Requires Thinking about Prefill-Decode Kernel Mismatch">
+  <meta name="citation_title" content="Reliable RL Scaling Requires Accounting for Prefill-Decode Kernel Mismatch">
   <meta name="citation_author" content="Yifan Zhang">
-  <meta name="citation_publication_date" content="2026/08/07">
+  <meta name="citation_publication_date" content="2026/08/09">
   <meta name="citation_pdf_url" content="https://yifanzhang-pro.github.io/Pretraining-RL-Science/Prefill_Decode_Kernel_Mismatch.pdf">
-  <meta property="og:title" content="Reliable RL Scaling Requires Thinking about Prefill-Decode Kernel Mismatch"/>
+  <meta property="og:title" content="Reliable RL Scaling Requires Accounting for Prefill-Decode Kernel Mismatch"/>
   <meta property="og:description" content="Equal checkpoints are not an on-policy guarantee: the effective policy is parameters plus execution path. Four complementary remedies for kernel mismatch in LM RL."/>
   <meta property="og:type" content="website"/>
   <meta property="og:url" content="https://yifanzhang-pro.github.io/Pretraining-RL-Science/"/>
@@ -201,10 +201,10 @@
     <div class="hero-body"><div class="container has-text-centered">
       <p class="eyebrow" style="color:var(--d-ink-3);margin-bottom:1rem;">Pretraining RL Science &middot; Report 1</p>
       <h1 class="title">Prefill-Decode Kernel Mismatch</h1>
-      <p class="subtitle" style="font-family:'Space Grotesk',sans-serif;font-size:clamp(1.2rem,2.4vw,1.75rem);font-weight:500;letter-spacing:-.02em;color:var(--d-ink-2);margin:1rem 0 0">Reliable RL Scaling Requires Thinking about Prefill-Decode Kernel Mismatch</p>
-      <h2 class="subtitle is-hero-subtitle">Language-model RL is literally on-policy only when the executable distribution used by rollout is the <span class="highlight">same distribution differentiated by the learner</span>. Equal checkpoints are insufficient: the effective policy is parameters plus execution path.</h2>
+      <p class="subtitle" style="font-family:'Space Grotesk',sans-serif;font-size:clamp(1.2rem,2.4vw,1.75rem);font-weight:500;letter-spacing:-.02em;color:var(--d-ink-2);margin:1rem 0 0">Reliable RL Scaling Requires Accounting for Prefill-Decode Kernel Mismatch</p>
+      <h2 class="subtitle is-hero-subtitle">A language-model rollout is on-policy for a declared target only when the <span class="highlight">post-sampling-transform behavior distribution equals that target</span> on the histories reached by rollout. Equal checkpoints do not ensure this: the effective policy is parameters plus execution path.</h2>
       <div class="authors-list"><a href="https://yifzhang.com" target="_blank" rel="noopener" style="color:inherit; text-decoration:underline; text-underline-offset:2px;"><strong>Yifan Zhang</strong></a> et al.</div>
-      <div class="affiliations">Pretraining RL Science &nbsp;&middot;&nbsp; August 7, 2026</div>
+      <div class="affiliations">Pretraining RL Science &nbsp;&middot;&nbsp; August 9, 2026</div>
       <div class="project-links">
           <a href="Prefill_Decode_Kernel_Mismatch.pdf" target="_blank" rel="noopener" aria-label="Paper PDF"><i class="fas fa-file-pdf"></i></a>
           <a href="https://github.com/yifanzhang-pro/Pretraining-RL-Science" target="_blank" rel="noopener" aria-label="Code"><i class="fab fa-github"></i></a>
@@ -220,8 +220,8 @@
     <section id="abstract" class="section content-section"><div class="container">
       <h2 class="section-title">Abstract</h2>
       <div class="content">
-        <p>Language-model reinforcement learning is literally on-policy only when the executable distribution used by rollout is the same distribution differentiated by the learner. Equal checkpoints are insufficient: prompt prefill, recurrent decoding, teacher-forced scoring, chunkwise scans, recurrent state updates, cache precision, and reduction order can induce different token probabilities. The mismatch is especially consequential for <strong>linear attention and state-space models</strong>, where a small state discrepancy can propagate through every later update.</p>
-        <p>This report develops <strong>four complementary remedies</strong>. First, treat kernel mismatch as off-policy data and use the actor-emitted probability in an explicit importance ratio. Second, make one chunkwise or recurrent execution rule canonical across rollout and differentiable learner replay. Third, retain recurrent states, sensitive parameters, and state-update accumulations in higher precision. Fourth, use a fast prefill or parallel path only as a speculative proposal and let the recurrent path perform exact modified rejection sampling and define the accepted policy. The report states the mathematical contracts, algorithms, diagnostics, and limitations of each route, and recommends a hybrid design that preserves recurrent actor probabilities while allowing fast learner and proposal kernels.</p>
+        <p>A language-model rollout is on-policy for a declared target only when the post-sampling-transform behavior distribution equals that target distribution on the histories reached by rollout. Equal checkpoints do not ensure this condition. Prompt prefill, cached decoding, teacher-forced scoring, parallel scans, recurrent state updates, cache precision, quantization, and reduction order can all change token probabilities. For <strong>linear attention and state-space models</strong>, a small state discrepancy can propagate through all later updates. Moreover, forward probability agreement at one parameter value is not enough to claim optimization of a recurrent deployment policy: the learner must also use the corresponding <strong>score function</strong>, or a backward-equivalent implementation.</p>
+        <p>The report studies <strong>four responses</strong>. First, treat execution mismatch as off-policy data, store the actor-emitted probability, and use an explicit importance ratio, distinguishing the exact local one-step-deviation surrogate from full trajectory correction and stating the required support contract. Second, make one chunkwise or recurrent execution rule canonical across rollout and differentiable learner replay; TTT, Titans, and RWKV-7 illustrate relevant execution semantics, but architecture names alone do not establish parity. Third, use higher precision for recurrent states and sensitive updates as a numerical mitigation, not as an equality proof. Fourth, use a fast path only as a proposal and let a recurrent target perform exact modified rejection sampling; the standard tokenwise correction is exact only when the proposal exposes the actual conditional probabilities of the drafted sequence. The report recommends separating an <strong>exact recurrent-target mode</strong> from a <strong>scalable parallel-target surrogate</strong>, with explicit audits for forward probabilities, score functions, support, and state precision.</p>
         <p class="has-text-centered"><a class="button is-primary" href="Prefill_Decode_Kernel_Mismatch.pdf" target="_blank" rel="noopener"><span class="icon"><i class="fas fa-file-pdf"></i></span><span>Read the Report</span></a> <a class="button" href="https://github.com/yifanzhang-pro/Pretraining-RL-Science" target="_blank" rel="noopener"><span class="icon"><i class="fab fa-github"></i></span><span>Project Page</span></a></p>
       </div>
     </div></section>
@@ -253,9 +253,9 @@
           <div class="column is-6"><div class="pillar-box"><span class="eyebrow">I</span><h3 style="margin-top:.4rem">Treat kernel mismatch as off-policy data</h3><p>Define the behavior distribution by the path that actually sampled each token, preserve that probability in the rollout record, and perform an explicit change of measure at the learner. One time-dependent behavior operator covers both prefill-decode mismatch and chunkwise-parallel-recurrent mismatch.</p></div></div>
           <div class="column is-6"><div class="pillar-box"><span class="eyebrow">II</span><h3 style="margin-top:.4rem">Make one execution rule canonical</h3><p>Use the same chunkwise or recurrent execution rule for rollout and differentiable learner replay. TTT and Titans illustrate chunkwise memory-update semantics and RWKV-7 illustrates a recurrent architecture, but neither removes mismatch unless the same executable rule actually runs on both sides.</p></div></div>
           <div class="column is-6"><div class="pillar-box"><span class="eyebrow">III</span><h3 style="margin-top:.4rem">Raise precision where it compounds</h3><p>Retain recurrent states, sensitive parameters, and state-update accumulations in higher precision. This shrinks numerical drift at its source, but it is a mitigation, not an equality proof.</p></div></div>
-          <div class="column is-6"><div class="pillar-box"><span class="eyebrow">IV</span><h3 style="margin-top:.4rem">Speculate fast, accept exactly</h3><p>Use a fast prefill or parallel path only as a speculative proposal and let the recurrent path perform exact modified rejection sampling. The recurrent path defines the accepted policy, so throughput improves without changing the distribution.</p></div></div>
+          <div class="column is-6"><div class="pillar-box"><span class="eyebrow">IV</span><h3 style="margin-top:.4rem">Speculate fast, accept exactly</h3><p>Use a fast prefill or parallel path only as a proposal and let a recurrent target perform exact modified rejection sampling. The recurrent target defines the accepted policy, and the standard tokenwise correction is exact only when the proposal exposes the actual conditional probabilities of the drafted sequence.</p></div></div>
         </div>
-        <div class="box"><h3>Recommended hybrid</h3><p>Preserve recurrent actor probabilities as the ground-truth behavior distribution while allowing fast learner and proposal kernels: the learner replays or corrects against the actor-emitted probabilities, and fast kernels accelerate everything that does not define the policy.</p></div>
+        <div class="box"><h3>Recommended design</h3><p>Separate an exact recurrent-target mode from a scalable parallel-target surrogate, with explicit audits for forward probabilities, score functions, support, and state precision. Fast kernels accelerate everything that does not define the policy, and the audits say which mode a run actually earned.</p></div>
       </div>
     </div></section>
 
@@ -276,7 +276,7 @@
       <div class="content">
         <p>If you find this work useful, please cite:</p>
 <pre id="cite-bibtex"><code>@misc{zhang2026kernelmismatch,
-  title        = {Reliable RL Scaling Requires Thinking about Prefill-Decode Kernel Mismatch},
+  title        = {Reliable RL Scaling Requires Accounting for Prefill-Decode Kernel Mismatch},
   author       = {Zhang, Yifan and others},
   year         = {2026},
   howpublished = {\url{https://github.com/yifanzhang-pro/Pretraining-RL-Science}}
