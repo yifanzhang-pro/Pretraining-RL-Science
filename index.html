@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reliable RL Scaling Requires Thinking about Prefill-Decode Kernel Mismatch</title>
+  <meta name="description" content="LM reinforcement learning is literally on-policy only when the executable distribution used by rollout is the same distribution differentiated by the learner. Four remedies for prefill-decode and chunkwise-recurrent kernel mismatch.">
+  <meta name="citation_title" content="Reliable RL Scaling Requires Thinking about Prefill-Decode Kernel Mismatch">
+  <meta name="citation_author" content="Yifan Zhang">
+  <meta name="citation_publication_date" content="2026/08/07">
+  <meta name="citation_pdf_url" content="https://yifanzhang-pro.github.io/Pretraining-RL-Science/Prefill_Decode_Kernel_Mismatch.pdf">
+  <meta property="og:title" content="Reliable RL Scaling Requires Thinking about Prefill-Decode Kernel Mismatch"/>
+  <meta property="og:description" content="Equal checkpoints are not an on-policy guarantee: the effective policy is parameters plus execution path. Four complementary remedies for kernel mismatch in LM RL."/>
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://yifanzhang-pro.github.io/Pretraining-RL-Science/"/>
+  <link rel="canonical" href="https://yifanzhang-pro.github.io/Pretraining-RL-Science/">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230A0A0A'/%3E%3Ctext x='50' y='55' font-family='Arial,sans-serif' font-size='44' font-weight='700' fill='white' text-anchor='middle' dominant-baseline='central'%3EYZ%3C/text%3E%3C/svg%3E" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script>MathJax={tex:{inlineMath:[['$','$'],['\\(','\\)']],displayMath:[['$$','$$'],['\\[','\\]']]},svg:{fontCache:'global'}};</script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+STYLE_PLACEHOLDER
+</head>
+<body>
+
+  <nav class="navbar" role="navigation" aria-label="main navigation">
+    <div class="container">
+      <div class="navbar-brand">
+        <a class="navbar-item" href="#">Pretraining RL Science</a>
+        <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false" data-target="navbarMenu"><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span></a>
+      </div>
+      <div id="navbarMenu" class="navbar-menu"><div class="navbar-end">
+          <a href="#abstract" class="navbar-item">Abstract</a>
+          <a href="#mismatch" class="navbar-item">The Mismatch</a>
+          <a href="#linear" class="navbar-item">Linear Attention</a>
+          <a href="#remedies" class="navbar-item">Remedies</a>
+          <a href="#rules" class="navbar-item">Rules</a>
+          <a href="#citation" class="navbar-item">Citation</a>
+          <a href="https://yfz.ai/blog" class="navbar-item">Blog</a>
+      </div></div>
+    </div>
+  </nav>
+
+  <header class="hero is-medium">
+    <div class="hero-body"><div class="container has-text-centered">
+      <p class="eyebrow" style="color:var(--d-ink-3);margin-bottom:1rem;">Pretraining RL Science &middot; Report 1</p>
+      <h1 class="title">Prefill-Decode Kernel Mismatch</h1>
+      <p class="subtitle" style="font-family:'Space Grotesk',sans-serif;font-size:clamp(1.2rem,2.4vw,1.75rem);font-weight:500;letter-spacing:-.02em;color:var(--d-ink-2);margin:1rem 0 0">Reliable RL Scaling Requires Thinking about Prefill-Decode Kernel Mismatch</p>
+      <h2 class="subtitle is-hero-subtitle">Language-model RL is literally on-policy only when the executable distribution used by rollout is the <span class="highlight">same distribution differentiated by the learner</span>. Equal checkpoints are insufficient: the effective policy is parameters plus execution path.</h2>
+      <div class="authors-list"><a href="https://yifzhang.com" target="_blank" rel="noopener" style="color:inherit; text-decoration:underline; text-underline-offset:2px;"><strong>Yifan Zhang</strong></a> et al.</div>
+      <div class="affiliations">Pretraining RL Science &nbsp;&middot;&nbsp; August 7, 2026</div>
+      <div class="project-links">
+          <a href="Prefill_Decode_Kernel_Mismatch.pdf" target="_blank" rel="noopener" aria-label="Paper PDF"><i class="fas fa-file-pdf"></i></a>
+          <a href="https://github.com/yifanzhang-pro/Pretraining-RL-Science" target="_blank" rel="noopener" aria-label="Code"><i class="fab fa-github"></i></a>
+          <a href="#citation" aria-label="Citation"><i class="fas fa-quote-right"></i></a>
+      </div>
+      <div style="margin-top:1.25rem;">
+          <span class="pill">On-Policy RL</span><span class="pill">Kernel Mismatch</span><span class="pill">Linear Attention &middot; SSM</span><span class="pill">Importance Sampling</span>
+      </div>
+    </div></div>
+  </header>
+
+  <main>
+    <section id="abstract" class="section content-section"><div class="container">
+      <h2 class="section-title">Abstract</h2>
+      <div class="content">
+        <p>Language-model reinforcement learning is literally on-policy only when the executable distribution used by rollout is the same distribution differentiated by the learner. Equal checkpoints are insufficient: prompt prefill, recurrent decoding, teacher-forced scoring, chunkwise scans, recurrent state updates, cache precision, and reduction order can induce different token probabilities. The mismatch is especially consequential for <strong>linear attention and state-space models</strong>, where a small state discrepancy can propagate through every later update.</p>
+        <p>This report develops <strong>four complementary remedies</strong>. First, treat kernel mismatch as off-policy data and use the actor-emitted probability in an explicit importance ratio. Second, make one chunkwise or recurrent execution rule canonical across rollout and differentiable learner replay. Third, retain recurrent states, sensitive parameters, and state-update accumulations in higher precision. Fourth, use a fast prefill or parallel path only as a speculative proposal and let the recurrent path perform exact modified rejection sampling and define the accepted policy. The report states the mathematical contracts, algorithms, diagnostics, and limitations of each route, and recommends a hybrid design that preserves recurrent actor probabilities while allowing fast learner and proposal kernels.</p>
+        <p class="has-text-centered"><a class="button is-primary" href="Prefill_Decode_Kernel_Mismatch.pdf" target="_blank" rel="noopener"><span class="icon"><i class="fas fa-file-pdf"></i></span><span>Read the Report</span></a> <a class="button" href="https://github.com/yifanzhang-pro/Pretraining-RL-Science" target="_blank" rel="noopener"><span class="icon"><i class="fab fa-github"></i></span><span>Project Page</span></a></p>
+      </div>
+    </div></section>
+
+    <section id="mismatch" class="section content-section"><div class="container">
+      <h2 class="section-title">Same Checkpoint, Different Policy</h2>
+      <div class="content">
+        <p>A standard rollout processes the prompt with a parallel prefill kernel, then produces response tokens by one-token recurrent decoding over the cache. The learner typically does something else: it concatenates prompt and response and scores them in one teacher-forced parallel causal pass. After the first generated token, the behavior probability and the learner probability usually come from <strong>different kernel families</strong>, at the same parameter vector $\theta$.</p>
+        <div class="math-block">$$\text{effective policy} = \text{parameters} + \text{execution path}$$</div>
+        <p>The concrete implementation bug is to sample with $\mathsf{K}_{\mathrm{roll}}$ but later reconstruct the "old" probability with $\mathsf{K}_{\mathrm{learn}}$. The correct recordwise ratio is</p>
+        <div class="math-block">$$\rho_t = \frac{\pi_{\theta_n}^{\mathsf{K}_{\mathrm{learn}}}(a_t \mid h_t)}{\pi_{\theta_v}^{\mathsf{K}_{\mathrm{roll}}}(a_t \mid h_t)},$$</div>
+        <p>whereas the buggy recomputation replaces the denominator with the learner engine's own probability, which is one by construction at zero parameter lag. Recomputing the denominator with the learner engine therefore <strong>hides, rather than fixes, the mismatch</strong>. The sampled-token log-ratio separates cleanly into a kernel term and a staleness term, and a fully synchronous system can still be off-policy because the kernel term generally survives at $n=v$.</p>
+        <div class="box"><h3>What perturbs the logits</h3><p>Tiling and fusion decisions; floating-point accumulation and reduction order; KV-cache layout and prompt-state construction; batch shape and sequence length; tensor- and sequence-parallel communication; precision, quantization, and numerical rounding. The gap may be negligible in one configuration and large enough to affect RL optimization in another; it must be measured rather than inferred from checkpoint identity.</p></div>
+      </div>
+    </div></section>
+
+    <section id="linear" class="section content-section"><div class="container">
+      <h2 class="section-title">Why Linear Attention and SSMs Are Especially Sensitive</h2>
+      <div class="content">
+        <p>For linear attention and state-space models the distinction is structural. Inference is naturally a recurrence $S_t = F_\theta(S_{t-1}, x_t)$, while efficient training uses a parallel scan, a convolutional dual, or a chunkwise factorization. The chunk size $C$ interpolates between execution schedules: $C=1$ is fully recurrent, $C=L$ is fully parallel. The formulas can be algebraically equivalent yet implement <strong>different finite-precision operators</strong>: changing the chunk schedule changes the parenthesization of the recurrence, and a small difference in one intermediate state can alter every later state and every later token probability.</p>
+        <p><strong>DeltaNet</strong> makes this particularly sharp because the state update is a data-dependent corrective write: $S_t = S_{t-1}(I - \beta_t k_t k_t^{\top}) + \beta_t v_t k_t^{\top}$. An error in $S_{t-1}$ changes the read, which changes the value erased by the delta rule, which changes the next read and corrective write. The state error is not merely observed downstream; it <strong>participates in the future update dynamics</strong>. Recurrent DeltaNet rollout and learner scoring with the parallelized delta-rule kernel must be regarded as different effective policies unless finite-precision parity is explicitly demonstrated.</p>
+      </div>
+    </div></section>
+
+    <section id="remedies" class="section content-section"><div class="container">
+      <h2 class="section-title">Four Complementary Remedies</h2>
+      <div class="content">
+        <div class="columns is-multiline">
+          <div class="column is-6"><div class="pillar-box"><span class="eyebrow">I</span><h3 style="margin-top:.4rem">Treat kernel mismatch as off-policy data</h3><p>Define the behavior distribution by the path that actually sampled each token, preserve that probability in the rollout record, and perform an explicit change of measure at the learner. One time-dependent behavior operator covers both prefill-decode mismatch and chunkwise-parallel-recurrent mismatch.</p></div></div>
+          <div class="column is-6"><div class="pillar-box"><span class="eyebrow">II</span><h3 style="margin-top:.4rem">Make one execution rule canonical</h3><p>Use the same chunkwise or recurrent execution rule for rollout and differentiable learner replay. TTT and Titans illustrate chunkwise memory-update semantics and RWKV-7 illustrates a recurrent architecture, but neither removes mismatch unless the same executable rule actually runs on both sides.</p></div></div>
+          <div class="column is-6"><div class="pillar-box"><span class="eyebrow">III</span><h3 style="margin-top:.4rem">Raise precision where it compounds</h3><p>Retain recurrent states, sensitive parameters, and state-update accumulations in higher precision. This shrinks numerical drift at its source, but it is a mitigation, not an equality proof.</p></div></div>
+          <div class="column is-6"><div class="pillar-box"><span class="eyebrow">IV</span><h3 style="margin-top:.4rem">Speculate fast, accept exactly</h3><p>Use a fast prefill or parallel path only as a speculative proposal and let the recurrent path perform exact modified rejection sampling. The recurrent path defines the accepted policy, so throughput improves without changing the distribution.</p></div></div>
+        </div>
+        <div class="box"><h3>Recommended hybrid</h3><p>Preserve recurrent actor probabilities as the ground-truth behavior distribution while allowing fast learner and proposal kernels: the learner replays or corrects against the actor-emitted probabilities, and fast kernels accelerate everything that does not define the policy.</p></div>
+      </div>
+    </div></section>
+
+    <section id="rules" class="section content-section"><div class="container">
+      <h2 class="section-title">Three Implementation Rules</h2>
+      <div class="content">
+        <div class="columns is-multiline">
+          <div class="column is-4"><div class="box"><h3>1. Capture behavior probabilities from the actor path</h3><p>Store the log-probability emitted by the actual sampling engine at the point where each token is drawn. A learner-side replay is an acceptable substitute only after distributional parity with the actor path has been established.</p></div></div>
+          <div class="column is-4"><div class="box"><h3>2. Do not fold kernel mismatch into parameter staleness</h3><p>Log the rollout-to-learner probability gap at fixed weights separately from version lag. Otherwise actor refresh may appear to solve a mismatch that actually comes from execution kernels.</p></div></div>
+          <div class="column is-4"><div class="box"><h3>3. Reserve "on-policy" for a measured execution contract</h3><p>Literal on-policy learning requires either the same recurrent path for rollout and differentiable learner replay, or a parallel path verified to induce the same token distribution under the declared batch shape, precision, cache construction, chunk schedule, and parallel layout.</p></div></div>
+        </div>
+        <p>When those conditions are not met, off-policy is the correct systems abstraction even if rollout and learner use the same nominal checkpoint. The report includes a minimal fixed-weight parity audit for measuring the gap directly.</p>
+      </div>
+    </div></section>
+
+    <section id="citation" class="section content-section"><div class="container">
+      <h2 class="section-title">Citation</h2>
+      <div class="content">
+        <p>If you find this work useful, please cite:</p>
+<pre id="cite-bibtex"><code>@misc{zhang2026kernelmismatch,
+  title        = {Reliable RL Scaling Requires Thinking about Prefill-Decode Kernel Mismatch},
+  author       = {Zhang, Yifan and others},
+  year         = {2026},
+  howpublished = {\url{https://github.com/yifanzhang-pro/Pretraining-RL-Science}}
+}</code></pre>
+        <p><button id="copy-cite" class="button"><span class="icon"><i class="fas fa-clipboard"></i></span><span>Copy BibTeX</span></button></p>
+      </div>
+    </div></section>
+  </main>
+
+  <footer class="footer"><div class="container"><div class="content has-text-centered">
+    <p><a href="#abstract">Abstract</a> &nbsp;&bull;&nbsp; <a href="#mismatch">The Mismatch</a> &nbsp;&bull;&nbsp; <a href="#remedies">Remedies</a> &nbsp;&bull;&nbsp; <a href="#citation">Citation</a> &nbsp;&bull;&nbsp; <a href="https://github.com/yifanzhang-pro/Pretraining-RL-Science">GitHub</a> &nbsp;&bull;&nbsp; <a href="https://yfz.ai/blog">Yifan's Blog</a></p>
+    <p>&copy; 2026 Pretraining RL Science Authors. All rights reserved.</p>
+  </div></div></footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const navbar = document.querySelector('.navbar');
+      const hero = document.querySelector('.hero');
+      const burgers = Array.from(document.querySelectorAll('.navbar-burger'));
+      if (navbar && hero && 'IntersectionObserver' in window) {
+        new IntersectionObserver(([e]) => navbar.classList.toggle('is-scrolled', !e.isIntersecting),
+          { rootMargin: '-69px 0px 0px 0px', threshold: 0 }).observe(hero);
+      }
+      const closeMenu = () => {
+        document.querySelectorAll('.navbar-burger.is-active').forEach(b => b.classList.remove('is-active'));
+        document.querySelectorAll('.navbar-menu.is-active').forEach(m => m.classList.remove('is-active'));
+        document.body.classList.remove('nav-open');
+      };
+      burgers.forEach(el => el.addEventListener('click', () => {
+        const target = document.getElementById(el.dataset.target);
+        el.classList.toggle('is-active'); if (target) target.classList.toggle('is-active');
+        document.body.classList.toggle('nav-open', el.classList.contains('is-active'));
+      }));
+      document.querySelectorAll('.navbar-menu .navbar-item').forEach(a => a.addEventListener('click', closeMenu));
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+      const btn = document.getElementById('copy-cite'), pre = document.getElementById('cite-bibtex');
+      if (btn && pre) { btn.addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(pre.innerText); btn.classList.add('is-success');
+          btn.innerHTML = '<span class="icon"><i class="fas fa-check"></i></span><span>Copied</span>';
+          setTimeout(() => { btn.classList.remove('is-success'); btn.innerHTML = '<span class="icon"><i class="fas fa-clipboard"></i></span><span>Copy BibTeX</span>'; }, 1600);
+        } catch (e) { const r=document.createRange(); r.selectNode(pre); const s=window.getSelection(); s.removeAllRanges(); s.addRange(r); try{document.execCommand('copy')}catch(_){}; s.removeAllRanges(); }
+      }); }
+    });
+  </script>
+</body>
+</html>
