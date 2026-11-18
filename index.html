@@ -7,6 +7,7 @@
   <meta name="description" content="LM reinforcement learning is literally on-policy only when the executable distribution used by rollout is the same distribution differentiated by the learner. Four remedies for prefill-decode and chunkwise-recurrent kernel mismatch.">
   <meta name="citation_title" content="Reliable RL Scaling Requires Accounting for Prefill-Decode Kernel Mismatch">
   <meta name="citation_author" content="Yifan Zhang">
+  <meta name="citation_author" content="NVIDIA Research">
   <meta name="citation_publication_date" content="2026/08/09">
   <meta name="citation_pdf_url" content="https://yifanzhang-pro.github.io/Pretraining-RL-Science/Prefill_Decode_Kernel_Mismatch.pdf">
   <meta property="og:title" content="Reliable RL Scaling Requires Accounting for Prefill-Decode Kernel Mismatch"/>
@@ -203,8 +204,8 @@
       <h1 class="title">Prefill-Decode Kernel Mismatch</h1>
       <p class="subtitle" style="font-family:'Space Grotesk',sans-serif;font-size:clamp(1.2rem,2.4vw,1.75rem);font-weight:500;letter-spacing:-.02em;color:var(--d-ink-2);margin:1rem 0 0">Reliable RL Scaling Requires Accounting for Prefill-Decode Kernel Mismatch</p>
       <h2 class="subtitle is-hero-subtitle">A language-model rollout is on-policy for a declared target only when the <span class="highlight">post-sampling-transform behavior distribution equals that target</span> on the histories reached by rollout. Equal checkpoints do not ensure this: the effective policy is parameters plus execution path.</h2>
-      <div class="authors-list"><a href="https://yifzhang.com" target="_blank" rel="noopener" style="color:inherit; text-decoration:underline; text-underline-offset:2px;"><strong>Yifan Zhang</strong></a> et al.</div>
-      <div class="affiliations">Pretraining RL Science &nbsp;&middot;&nbsp; August 9, 2026</div>
+      <div class="authors-list"><a href="https://yifzhang.com" target="_blank" rel="noopener" style="color:inherit; text-decoration:underline; text-underline-offset:2px;"><strong>Yifan Zhang</strong></a> and NVIDIA Research</div>
+      <div class="affiliations">Pretraining RL Science &nbsp;&middot;&nbsp; August 9, 2026 &nbsp;&middot;&nbsp; revised November 18, 2026</div>
       <div class="project-links">
           <a href="Prefill_Decode_Kernel_Mismatch.pdf" target="_blank" rel="noopener" aria-label="Paper PDF"><i class="fas fa-file-pdf"></i></a>
           <a href="https://github.com/yifanzhang-pro/Pretraining-RL-Science" target="_blank" rel="noopener" aria-label="Code"><i class="fab fa-github"></i></a>
@@ -348,7 +349,7 @@
         <p>If you find this work useful, please cite:</p>
 <pre id="cite-bibtex"><code>@misc{zhang2026kernelmismatch,
   title        = {Reliable RL Scaling Requires Accounting for Prefill-Decode Kernel Mismatch},
-  author       = {Zhang, Yifan and others},
+  author       = {Zhang, Yifan and {NVIDIA Research}},
   year         = {2026},
   howpublished = {\url{https://github.com/yifanzhang-pro/Pretraining-RL-Science}}
 }</code></pre>
